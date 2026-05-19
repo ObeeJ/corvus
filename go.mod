@@ -2,6 +2,8 @@ module github.com/ObeeJ/corvus
 
 go 1.23
 
+toolchain go1.23.0
+
 require (
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/gofiber/contrib/websocket v1.3.4
