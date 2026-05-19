@@ -1,0 +1,12 @@
+bin/
+*.db
+*.db-lock
+*.log
+*.jsonl
+.env
+.env.*
+vendor/
+dist/
+web/node_modules/
+web/dist/
+/var/lib/corvus/
