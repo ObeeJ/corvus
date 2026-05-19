@@ -1,6 +1,6 @@
 module github.com/ObeeJ/corvus
 
-go 1.26.3
+go 1.23
 
 require (
 	github.com/go-viper/mapstructure/v2 v2.4.0
