@@ -114,7 +114,8 @@ export default function BillingPage() {
   const [invoicesLoading, setInvoicesLoading] = useState(false);
   const [invoicesFetched, setInvoicesFetched] = useState(false);
 
-  /* Handle post-checkout redirect from Paystack: /billing?success=true or ?canceled=true */
+  /* Handle post-checkout redirect from Paystack: /billing?success=true or ?canceled=true
+     Also handles /billing?quota=exceeded from the 402 auto-redirect in apiFetch */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("success") === "true") {
@@ -127,9 +128,11 @@ export default function BillingPage() {
         const fresh = await refreshUser();
         if (fresh?.plan === "pro" || tries >= 10) clearInterval(id);
       }, 3000);
-      // First refresh immediately too.
       refreshUser();
     } else if (params.get("canceled") === "true") {
+      setBanner({ type: "canceled", visible: true });
+      window.history.replaceState({}, "", "/billing");
+    } else if (params.get("quota") === "exceeded") {
       setBanner({ type: "canceled", visible: true });
       window.history.replaceState({}, "", "/billing");
     }
