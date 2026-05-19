@@ -46,9 +46,10 @@ func QuotaMiddleware(db *sql.DB) fiber.Handler {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to check quota"})
 		}
 
-		if count >= 100 {
+		if count >= 5 {
 			return c.Status(fiber.StatusPaymentRequired).JSON(fiber.Map{
-				"error": "Quota exceeded. Upgrade to PRO for unlimited scans.",
+				"error":   "Free plan limit reached (5 scans). Upgrade to Pro for unlimited scans.",
+				"upgrade": "/billing",
 			})
 		}
 

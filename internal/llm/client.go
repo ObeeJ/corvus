@@ -404,13 +404,14 @@ func (c *Client) Speak(ctx context.Context, text, voice string) ([]byte, error) 
 		return nil, fmt.Errorf("CORVUS_LLM_API_KEY not set")
 	}
 	if voice == "" {
-		voice = "tara" // default Orpheus voice
+		voice = "autumn"
 	}
 
 	body := map[string]any{
 		"model":           "canopylabs/orpheus-v1-english",
 		"input":           text,
 		"voice":           voice,
+		"temperature":     0,
 		"response_format": "wav",
 	}
 	data, _ := json.Marshal(body)

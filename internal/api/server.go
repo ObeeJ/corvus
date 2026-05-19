@@ -51,7 +51,7 @@ func New(eng *engine.Engine, storeMgr *store.Manager, dbClient *db.Client, meshN
 	if dsn := os.Getenv("SENTRY_DSN"); dsn != "" {
 		if err := sentry.Init(sentry.ClientOptions{
 			Dsn:              dsn,
-			TracesSampleRate: 1.0,
+			TracesSampleRate: getSampleRate(),
 			EnableLogs:       true,
 			Environment:      os.Getenv("APP_ENV"),
 			BeforeSend: func(event *sentry.Event, hint *sentry.EventHint) *sentry.Event {
@@ -159,7 +159,7 @@ func (s *Server) registerMiddleware() {
 	}
 	// CORS for development — allows the Next.js dev server to call the API.
 	s.app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
+		AllowOrigins: getAllowedOrigins(),
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 		AllowMethods: "GET, POST, PUT, DELETE, OPTIONS",
 	}))
@@ -173,6 +173,26 @@ func (s *Server) registerMiddleware() {
 		Max:        100,
 		Expiration: time.Minute,
 	}))
+
+	// Per-user rate limiter on authenticated routes: 200 req/min per user.
+	// Applied after JWT middleware so user_id is available.
+	userRateLimiter := limiter.New(limiter.Config{
+		Max:        200,
+		Expiration: time.Minute,
+		KeyGenerator: func(c *fiber.Ctx) string {
+			if uid, ok := c.Locals("user_id").(string); ok && uid != "" {
+				return "user:" + uid
+			}
+			return c.IP()
+		},
+		LimitReached: func(c *fiber.Ctx) error {
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+				"error": "Rate limit exceeded. Max 200 requests per minute per user.",
+			})
+		},
+	})
+	s.app.Use("/api/v1/scan", userRateLimiter)
+	s.app.Use("/api/v1/ask", userRateLimiter)
 
 	// Use JWT middleware for authenticated routes if DB is configured
 	if s.db != nil {
@@ -215,6 +235,12 @@ func (s *Server) registerRoutes() {
 		}
 		return s.auth.Me(c)
 	})
+	v1.Post("/auth/refresh", auth.Middleware(), func(c *fiber.Ctx) error {
+		if s.auth == nil {
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "authentication not configured"})
+		}
+		return s.auth.Refresh(c)
+	})
 
 	// Billing routes
 	if s.billing != nil {
@@ -243,16 +269,16 @@ func (s *Server) registerRoutes() {
 	v1.Post("/query", s.queryHandlers.ExecuteQuery)
 
 	// LLM ask route
-	v1.Post("/ask", s.askHandlers.Ask)
-	v1.Post("/ask/transcribe", s.askHandlers.Transcribe)
-	v1.Post("/ask/speak", s.askHandlers.Speak)
-	v1.Get("/ask/models", s.askHandlers.ListModels)
+	v1.Post("/ask", auth.Middleware(), s.askHandlers.Ask)
+	v1.Post("/ask/transcribe", auth.Middleware(), s.askHandlers.Transcribe)
+	v1.Post("/ask/speak", auth.Middleware(), s.askHandlers.Speak)
+	v1.Get("/ask/models", auth.Middleware(), s.askHandlers.ListModels)
 
 	// Supply chain route
-	v1.Get("/supplychain/:ip", s.supplyChainHandlers.GetSupplyChain)
+	v1.Get("/supplychain/:ip", auth.Middleware(), s.supplyChainHandlers.GetSupplyChain)
 
 	// Mesh routes
-	v1.Get("/mesh/nodes", s.handleMeshNodes)
+	v1.Get("/mesh/nodes", auth.Middleware(), s.handleMeshNodes)
 
 	// Static fallback for the Next.js frontend build.
 	s.app.Static("/", "./web/out")
@@ -264,4 +290,25 @@ func (s *Server) handleMeshNodes(c *fiber.Ctx) error {
 	}
 	nodes := s.mesh.Nodes()
 	return c.JSON(fiber.Map{"nodes": nodes, "total": len(nodes)})
+}
+
+// getAllowedOrigins returns CORS origins from env or defaults to localhost for dev.
+func getAllowedOrigins() string {
+	if origins := os.Getenv("ALLOWED_ORIGINS"); origins != "" {
+		return origins
+	}
+	// Dev default: allow Next.js dev server and production URL
+	publicURL := os.Getenv("PUBLIC_URL")
+	if publicURL == "" {
+		publicURL = "http://localhost:3001"
+	}
+	return "http://localhost:3000,http://localhost:3001," + publicURL
+}
+
+// getSampleRate returns 1.0 in dev, 0.1 in production to stay within Sentry free tier.
+func getSampleRate() float64 {
+	if os.Getenv("APP_ENV") == "production" {
+		return 0.1
+	}
+	return 1.0
 }

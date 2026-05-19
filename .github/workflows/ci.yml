@@ -28,7 +28,6 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
-    if: false  # TODO: re-enable once Go 1.25 toolchain is stable locally
     steps:
       - uses: actions/checkout@v4
 

@@ -131,7 +131,7 @@ export default function Ask() {
     try {
       const res = await apiFetch("/api/v1/ask/speak", {
         method: "POST",
-        body: JSON.stringify({ text, voice: "Fritz-PlayAI" }),
+        body: JSON.stringify({ text, voice: "autumn" }),
       });
       const d = await res.json();
       if (d.audio) {

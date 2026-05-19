@@ -97,8 +97,7 @@ func (h *Handlers) Login(c *fiber.Ctx) error {
 	})
 }
 
-// Me returns the current authenticated user's fresh profile (id, email, plan).
-// Used after billing changes so the client can refresh its cached plan without re-login.
+// Me returns the current authenticated user's fresh profile.
 // GET /api/v1/auth/me
 func (h *Handlers) Me(c *fiber.Ctx) error {
 	userID, ok := c.Locals("user_id").(string)
@@ -120,5 +119,36 @@ func (h *Handlers) Me(c *fiber.Ctx) error {
 		"id":    userID,
 		"email": email,
 		"plan":  plan,
+	})
+}
+
+// Refresh issues a new JWT using the current valid token.
+// The frontend calls this before expiry to stay logged in silently.
+// POST /api/v1/auth/refresh
+func (h *Handlers) Refresh(c *fiber.Ctx) error {
+	userID, ok := c.Locals("user_id").(string)
+	if !ok || userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
+	}
+
+	// Always fetch fresh plan from DB — catches upgrades/downgrades.
+	var email, plan string
+	err := h.client.DB.QueryRow(
+		"SELECT email, plan FROM users WHERE id = $1", userID,
+	).Scan(&email, &plan)
+	if err == sql.ErrNoRows {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "user not found"})
+	} else if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "database error"})
+	}
+
+	token, err := GenerateToken(userID, plan)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to generate token"})
+	}
+
+	return c.JSON(fiber.Map{
+		"token": token,
+		"user":  fiber.Map{"id": userID, "email": email, "plan": plan},
 	})
 }

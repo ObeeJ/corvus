@@ -65,7 +65,6 @@ type Engine struct {
 
 // New creates a new engine instance.
 func New(storeMgr *store.Manager, sinks []anomaly.AlertSink, log *slog.Logger) *Engine {
-	// Initialize the CVE cache.
 	dbPath := "/var/lib/corvus/corvus.db"
 	if home, err := os.UserHomeDir(); err == nil {
 		dbPath = filepath.Join(home, ".corvus", "corvus.db")
@@ -76,7 +75,7 @@ func New(storeMgr *store.Manager, sinks []anomaly.AlertSink, log *slog.Logger) *
 		log.Warn("CVE cache unavailable", "err", err)
 	}
 
-	return &Engine{
+	e := &Engine{
 		storeMgr:    storeMgr,
 		sinks:       sinks,
 		fp:          fingerprint.New(log),
@@ -87,6 +86,24 @@ func New(storeMgr *store.Manager, sinks []anomaly.AlertSink, log *slog.Logger) *
 		jobs:        make(map[string]*Job),
 		subscribers: make(map[string][]chan types.EnrichedResult),
 	}
+
+	// Background goroutine: evict completed jobs older than 1 hour to prevent memory leak.
+	go func() {
+		ticker := time.NewTicker(15 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			cutoff := time.Now().Add(-1 * time.Hour)
+			e.mu.Lock()
+			for id, job := range e.jobs {
+				if job.Status != "running" && job.StartedAt.Before(cutoff) {
+					delete(e.jobs, id)
+				}
+			}
+			e.mu.Unlock()
+		}
+	}()
+
+	return e
 }
 
 // StartScan launches a background scan and returns a job ID immediately.

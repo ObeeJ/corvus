@@ -305,6 +305,14 @@ func (h *Handlers) Webhook(c *fiber.Ctx) error {
 		return c.SendStatus(fiber.StatusOK)
 	}
 
+	// Idempotency check — don't process the same reference twice.
+	var existingStatus string
+	h.db.QueryRow(`SELECT status FROM payments WHERE reference = $1`, event.Data.Reference).Scan(&existingStatus) //nolint:errcheck
+	if existingStatus == "success" {
+		h.log.Info("paystack webhook: already processed", "reference", event.Data.Reference)
+		return c.SendStatus(fiber.StatusOK)
+	}
+
 	userID := event.Data.Metadata["user_id"]
 	if userID == "" {
 		// Try to look up by reference.
