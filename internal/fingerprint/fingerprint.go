@@ -14,7 +14,7 @@ import (
 
 const (
 	bannerReadSize = 4096
-	bannerTimeout  = 2 * time.Second
+	bannerTimeout  = 500 * time.Millisecond
 )
 
 type Fingerprinter struct {
@@ -76,7 +76,7 @@ func (f *Fingerprinter) grabBanner(ctx context.Context, ip net.IP, port uint16) 
 	if err != nil {
 		return ""
 	}
-	defer conn.Close()
+	defer conn.Close() //nolint:errcheck
 	conn.SetDeadline(time.Now().Add(bannerTimeout)) //nolint:errcheck
 
 	// For HTTP ports, send a minimal probe to elicit a response.
@@ -110,7 +110,7 @@ func (f *Fingerprinter) grabTLS(ip net.IP, port uint16) *tlsInfo {
 	if err != nil {
 		return nil
 	}
-	defer conn.Close()
+	defer conn.Close() //nolint:errcheck
 
 	certs := conn.ConnectionState().PeerCertificates
 	if len(certs) == 0 {

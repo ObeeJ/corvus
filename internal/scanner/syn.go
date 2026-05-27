@@ -24,10 +24,10 @@ type SYNScanner struct {
 // and transparently falls back to TCP connect scanning.
 func NewSYN(cfg types.ScanConfig, log *slog.Logger) *SYNScanner {
 	if cfg.Concurrency <= 0 {
-		cfg.Concurrency = 500
+		cfg.Concurrency = 2000
 	}
 	if cfg.Timeout <= 0 {
-		cfg.Timeout = 3 * time.Second
+		cfg.Timeout = 750 * time.Millisecond
 	}
 
 	s := &SYNScanner{cfg: cfg, log: log}

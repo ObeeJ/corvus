@@ -35,7 +35,7 @@ func NewCache(path string, ttl time.Duration, log *slog.Logger) (*Cache, error) 
 		return err
 	})
 	if err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("initialising CVE cache bucket: %w", err)
 	}
 

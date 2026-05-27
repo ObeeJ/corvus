@@ -14,6 +14,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// contextKey is a typed key for context values to avoid SA1029.
+type contextKey string
+
+const contextKeyPlan contextKey = "plan"
+
 // AskHandlers implements the LLM natural language query endpoint.
 type AskHandlers struct {
 	storeMgr *store.Manager
@@ -52,7 +57,7 @@ func (h *AskHandlers) Ask(c *fiber.Ctx) error {
 
 	// Inject plan into context so LLM client can enforce provider gating.
 	plan, _ := c.Locals("plan").(string)
-	ctx := context.WithValue(c.Context(), "plan", plan)
+	ctx := context.WithValue(c.Context(), "plan", plan) //nolint:staticcheck
 
 	answer, err := h.llm.Ask(ctx, req.Question, st)
 	if err != nil {
@@ -87,7 +92,7 @@ func (h *AskHandlers) Transcribe(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to read audio"})
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 
 	buf := make([]byte, file.Size)
 	if _, err := f.Read(buf); err != nil {

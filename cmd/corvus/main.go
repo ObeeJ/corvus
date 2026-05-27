@@ -98,8 +98,8 @@ func buildScan() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&portsFlag, "ports", "p", "1-1024,8080,8443,9200,5432,3306,6379,27017", "ports to scan")
-	cmd.Flags().DurationVarP(&timeoutFlag, "timeout", "t", 3*time.Second, "per-port connection timeout")
-	cmd.Flags().IntVarP(&concurrencyFlag, "concurrency", "c", 500, "concurrent scan workers")
+	cmd.Flags().DurationVarP(&timeoutFlag, "timeout", "t", 750*time.Millisecond, "per-port connection timeout")
+	cmd.Flags().IntVarP(&concurrencyFlag, "concurrency", "c", 2000, "concurrent scan workers")
 	cmd.Flags().IntVarP(&rateFlag, "rate", "r", 0, "max probes per second (0 = unlimited)")
 	cmd.Flags().StringVar(&storeFlag, "store", defaultStorePath(), "path to state store")
 	cmd.Flags().BoolVar(&predictFlag, "predict", false, "run OSINT pre-scan to prioritise likely-open ports")
@@ -146,8 +146,8 @@ func runScan(target, portsSpec string, timeout time.Duration, concurrency, rate 
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-	fmt.Fprintln(w, "  HOST\tPORT\tPROTO\tSERVICE\tVERSION\tLATENCY\tCVES\tFLAGS")
-	fmt.Fprintln(w, "  ────\t────\t─────\t───────\t───────\t───────\t────\t─────")
+	_, _ = fmt.Fprintln(w, "  HOST\tPORT\tPROTO\tSERVICE\tVERSION\tLATENCY\tCVES\tFLAGS")
+	_, _ = fmt.Fprintln(w, "  ────\t────\t─────\t───────\t───────\t───────\t────\t─────")
 
 	started := time.Now()
 	var openCount int
@@ -174,7 +174,7 @@ func runScan(target, portsSpec string, timeout time.Duration, concurrency, rate 
 
 		fmt.Fprintf(w, "  %s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			enriched.IP, enriched.Port, enriched.Protocol, svc, ver, lat, cveStr, flagStr)
-		w.Flush()
+		_ = w.Flush()
 		openCount++
 
 		if len(enriched.CVEs) > 0 {
@@ -185,7 +185,7 @@ func runScan(target, portsSpec string, timeout time.Duration, concurrency, rate 
 		}
 	}
 
-	w.Flush()
+	_ = w.Flush()
 	printScanFooter(job.Hosts, openCount, time.Since(started))
 
 	if cveTotal > 0 || flagTotal > 0 {
@@ -220,8 +220,8 @@ func buildWatch() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&portsFlag, "ports", "p", "1-1024,8080,8443,9200,5432,3306,6379,27017", "ports to scan")
-	cmd.Flags().DurationVarP(&timeoutFlag, "timeout", "t", 3*time.Second, "per-port connection timeout")
-	cmd.Flags().IntVarP(&concurrencyFlag, "concurrency", "c", 500, "concurrent scan workers")
+	cmd.Flags().DurationVarP(&timeoutFlag, "timeout", "t", 750*time.Millisecond, "per-port connection timeout")
+	cmd.Flags().IntVarP(&concurrencyFlag, "concurrency", "c", 2000, "concurrent scan workers")
 	cmd.Flags().IntVarP(&rateFlag, "rate", "r", 0, "max probes per second (0 = unlimited)")
 	cmd.Flags().StringVar(&storeFlag, "store", defaultStorePath(), "path to state store")
 	cmd.Flags().DurationVarP(&intervalFlag, "interval", "i", 5*time.Minute, "time between scans")
@@ -388,8 +388,8 @@ func runQuery(expression, storePath string) error {
 	fmt.Printf("\n  ◉ %s query — %d result(s)\n\n", config.ProductName, len(results))
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-	fmt.Fprintln(w, "  HOST\tPORT\tPROTO\tSERVICE\tVERSION\tSTATUS\tLAST SEEN")
-	fmt.Fprintln(w, "  ────\t────\t─────\t───────\t───────\t──────\t─────────")
+	_, _ = fmt.Fprintln(w, "  HOST\tPORT\tPROTO\tSERVICE\tVERSION\tSTATUS\tLAST SEEN")
+	_, _ = fmt.Fprintln(w, "  ────\t────\t─────\t───────\t───────\t──────\t─────────")
 
 	for _, r := range results {
 		status := "closed"
@@ -403,7 +403,7 @@ func runQuery(expression, storePath string) error {
 		fmt.Fprintf(w, "  %s\t%d\t%s\t%s\t%s\t%s\t%s\n",
 			r.IP, r.Port, r.Protocol, svc, ver, status, seen)
 	}
-	w.Flush()
+	_ = w.Flush()
 	fmt.Println()
 
 	return nil
@@ -451,7 +451,7 @@ func runServe(port int, storePath string, authToken string, dbUrl string) error 
 		if err != nil {
 			return fmt.Errorf("database init failed: %w", err)
 		}
-		defer dbClient.Close()
+		defer func() { _ = dbClient.Close() }()
 	} else {
 		log.Warn("DATABASE_URL not set, running without authentication and billing")
 	}
@@ -521,7 +521,7 @@ func runNode(joinAddr string, meshPort int, storePath string, apiPort int, dbUrl
 		if err != nil {
 			return fmt.Errorf("database init failed: %w", err)
 		}
-		defer dbClient.Close()
+		defer func() { _ = dbClient.Close() }()
 	}
 
 	storeDir := filepath.Dir(storePath)

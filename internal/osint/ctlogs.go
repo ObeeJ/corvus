@@ -25,7 +25,7 @@ func QueryCTLogs(ctx context.Context, domain string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("querying crt.sh: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("crt.sh returned status %d", resp.StatusCode)

@@ -114,7 +114,7 @@ func (c *Correlator) queryNVD(ctx context.Context, cpe string) ([]CVE, error) {
 	if err != nil {
 		return nil, fmt.Errorf("NVD request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("NVD returned status %d", resp.StatusCode)
@@ -145,10 +145,10 @@ func (c *Correlator) queryNVD(ctx context.Context, cpe string) ([]CVE, error) {
 		}
 
 		// Extract CVSS v3.1 score.
-		if cv.Metrics.CVSSv31 != nil && len(cv.Metrics.CVSSv31) > 0 {
+		if len(cv.Metrics.CVSSv31) > 0 {
 			cve.CVSSv3 = cv.Metrics.CVSSv31[0].CVSSData.BaseScore
 			cve.Severity = cv.Metrics.CVSSv31[0].CVSSData.BaseSeverity
-		} else if cv.Metrics.CVSSv30 != nil && len(cv.Metrics.CVSSv30) > 0 {
+		} else if len(cv.Metrics.CVSSv30) > 0 {
 			cve.CVSSv3 = cv.Metrics.CVSSv30[0].CVSSData.BaseScore
 			cve.Severity = cv.Metrics.CVSSv30[0].CVSSData.BaseSeverity
 		}
@@ -181,7 +181,7 @@ func (c *Correlator) queryOSV(ctx context.Context, service, version string) ([]C
 	if err != nil {
 		return nil, fmt.Errorf("OSV request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("OSV returned status %d", resp.StatusCode)

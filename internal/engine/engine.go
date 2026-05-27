@@ -48,15 +48,27 @@ type Job struct {
 	Ports     int        `json:"ports"`
 }
 
+// UsageLogger is implemented by anything that can record a scan event for a user.
+// The billing DB satisfies this; a no-op is used for CLI / no-DB mode.
+type UsageLogger interface {
+	LogScan(userID string)
+}
+
+// noopUsageLogger is used when no DB is configured (CLI mode).
+type noopUsageLogger struct{}
+
+func (noopUsageLogger) LogScan(_ string) {}
+
 // Engine orchestrates background scans and provides live result streaming.
 type Engine struct {
-	storeMgr   *store.Manager
-	sinks      []anomaly.AlertSink
-	fp         *fingerprint.Fingerprinter
-	predictor  *osint.Predictor
-	correlator *cve.Correlator
-	scChecker  *supplychain.Checker
-	log        *slog.Logger
+	storeMgr    *store.Manager
+	sinks       []anomaly.AlertSink
+	fp          *fingerprint.Fingerprinter
+	predictor   *osint.Predictor
+	correlator  *cve.Correlator
+	scChecker   *supplychain.Checker
+	log         *slog.Logger
+	usageLogger UsageLogger
 
 	mu          sync.RWMutex
 	jobs        map[string]*Job
@@ -83,6 +95,7 @@ func New(storeMgr *store.Manager, sinks []anomaly.AlertSink, log *slog.Logger) *
 		correlator:  cve.NewCorrelator(cveCache, os.Getenv("CORVUS_NVD_API_KEY"), log),
 		scChecker:   supplychain.New(),
 		log:         log,
+		usageLogger: noopUsageLogger{},
 		jobs:        make(map[string]*Job),
 		subscribers: make(map[string][]chan types.EnrichedResult),
 	}
@@ -105,6 +118,9 @@ func New(storeMgr *store.Manager, sinks []anomaly.AlertSink, log *slog.Logger) *
 
 	return e
 }
+
+// SetUsageLogger wires in a DB-backed usage logger (called by the serve command).
+func (e *Engine) SetUsageLogger(l UsageLogger) { e.usageLogger = l }
 
 // StartScan launches a background scan and returns a job ID immediately.
 func (e *Engine) StartScan(ctx context.Context, cfg ScanConfig) (*Job, error) {
@@ -272,4 +288,8 @@ func (e *Engine) runScan(ctx context.Context, jobID string, ips []net.IP, ports 
 
 	anomalyEng.Flush(ips)
 	st.SetMeta("last_scan", time.Now().UTC().Format(time.RFC3339)) //nolint:errcheck
+	// Log usage so CLI scans count against quota the same as API scans.
+	if job.UserID != "" && job.UserID != "default" {
+		e.usageLogger.LogScan(job.UserID)
+	}
 }

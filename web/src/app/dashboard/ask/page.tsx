@@ -45,6 +45,7 @@ export default function Ask() {
 
   // TTS
   const [speaking, setSpeaking] = useState(false);
+  const [ttsError, setTtsError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Load models on mount
@@ -127,6 +128,7 @@ export default function Ask() {
   // TTS
   const speak = async (text: string) => {
     if (speaking) { audioRef.current?.pause(); setSpeaking(false); return; }
+    setTtsError(null);
     setSpeaking(true);
     try {
       const res = await apiFetch("/api/v1/ask/speak", {
@@ -142,6 +144,10 @@ export default function Ask() {
         audioRef.current = audio;
         audio.onended = () => setSpeaking(false);
         audio.play();
+      } else {
+        const msg: string = d.error || "TTS failed";
+        setTtsError(msg);
+        setSpeaking(false);
       }
     } catch { setSpeaking(false); }
   };
@@ -313,6 +319,24 @@ export default function Ask() {
               )}
             </div>
             <p className="font-mono text-[13px] text-white/65 leading-relaxed whitespace-pre-wrap tracking-wide">{llmAnswer}</p>
+            {ttsError && (
+              <div className="mt-3 flex items-start gap-2.5 p-3 bg-amber-500/[0.06] border border-amber-500/20">
+                <Volume2 className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-mono text-[11px] text-amber-300 tracking-wide leading-relaxed">{ttsError}</p>
+                  {ttsError.includes("terms") && (
+                    <a
+                      href="https://console.groq.com/playground?model=canopylabs%2Forpheus-v1-english"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono text-[10px] text-[#F97316]/70 hover:text-[#F97316] underline underline-offset-2 mt-1 inline-block tracking-wide"
+                    >
+                      Accept Orpheus terms on Groq console →
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

@@ -115,7 +115,7 @@ func (m *Mesh) Incoming() <-chan ScanShare {
 // Stop closes the mesh socket.
 func (m *Mesh) Stop() {
 	if m.conn != nil {
-		m.conn.Close()
+		_ = m.conn.Close()
 	}
 }
 

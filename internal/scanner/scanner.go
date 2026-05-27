@@ -30,10 +30,10 @@ type TCPScanner struct {
 
 func NewTCP(cfg types.ScanConfig, log *slog.Logger) *TCPScanner {
 	if cfg.Concurrency <= 0 {
-		cfg.Concurrency = 500
+		cfg.Concurrency = 2000
 	}
 	if cfg.Timeout <= 0 {
-		cfg.Timeout = 3 * time.Second
+		cfg.Timeout = 750 * time.Millisecond
 	}
 	return &TCPScanner{cfg: cfg, log: log}
 }
@@ -46,13 +46,14 @@ func (s *TCPScanner) Scan(ctx context.Context, ips []net.IP, ports []uint16) <-c
 	go func() {
 		defer close(results)
 
-		jobs := make(chan job, s.cfg.Concurrency)
+		jobs := make(chan job, s.cfg.Concurrency*2)
 
 		var limiter *rate.Limiter
 		if s.cfg.Rate > 0 {
 			limiter = rate.NewLimiter(rate.Limit(s.cfg.Rate), s.cfg.Rate)
 		}
 
+		// Worker pool — each worker dials one port at a time.
 		var wg sync.WaitGroup
 		for i := 0; i < s.cfg.Concurrency; i++ {
 			wg.Add(1)
@@ -80,6 +81,9 @@ func (s *TCPScanner) Scan(ctx context.Context, ips []net.IP, ports []uint16) <-c
 			}()
 		}
 
+		// Feed jobs: all ports for each IP together so one host is fully
+		// saturated before moving to the next — better cache locality and
+		// faster per-host completion.
 		for _, ip := range ips {
 			for _, port := range ports {
 				select {
@@ -115,7 +119,7 @@ func tcpProbe(ctx context.Context, ip net.IP, port uint16, timeout time.Duration
 			ScannedAt: time.Now(),
 		}
 	}
-	conn.Close()
+	_ = conn.Close()
 
 	return types.ScanResult{
 		IP:         ip,

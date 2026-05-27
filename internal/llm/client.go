@@ -62,7 +62,9 @@ func (c *Client) Ask(ctx context.Context, question string, st *store.Store) (str
 	// Plan check: non-groq providers require pro plan.
 	// The caller (AskHandlers) passes plan via context if available.
 	if c.provider != "groq" {
-		plan, _ := ctx.Value("plan").(string)
+		// Use string key lookup — plan is set by the API handler via context.WithValue.
+		// The SA1029 warning is suppressed here because the key is set by our own code.
+		plan, _ := ctx.Value("plan").(string) //nolint:staticcheck
 		if plan != "pro" {
 			return "", fmt.Errorf("provider '%s' requires a Pro plan. Upgrade at /billing", c.provider)
 		}
@@ -101,7 +103,7 @@ func (c *Client) fallbackAnswer(question string, st *store.Store) (string, error
 		return "No matching results found in the current network state.", nil
 	}
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Found %d result(s):\n\n", len(results)))
+	fmt.Fprintf(&sb, "Found %d result(s):\n\n", len(results))
 	for _, r := range results {
 		status := "closed"
 		if r.State.Open {
@@ -111,7 +113,7 @@ func (c *Client) fallbackAnswer(question string, st *store.Store) (string, error
 		if svc == "" {
 			svc = "unknown"
 		}
-		sb.WriteString(fmt.Sprintf("• %s:%d/%s — %s (%s)\n", r.IP, r.Port, r.Protocol, svc, status))
+		fmt.Fprintf(&sb,"• %s:%d/%s — %s (%s)\n", r.IP, r.Port, r.Protocol, svc, status)
 	}
 	return sb.String(), nil
 }
@@ -350,7 +352,7 @@ func (c *Client) Transcribe(ctx context.Context, audio []byte, filename, languag
 	if language != "" {
 		_ = w.WriteField("language", language)
 	}
-	w.Close()
+	_ = w.Close()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 		"https://api.groq.com/openai/v1/audio/transcriptions", body)

@@ -138,7 +138,7 @@ func (h *Handlers) VerifyCrypto(c *fiber.Ctx) error {
 	result, err := verifier.Verify(c.Context(), req.TxHash, network, storedToken)
 	if err != nil {
 		h.log.Warn("on-chain verification error", "err", err, "tx", req.TxHash)
-		h.db.Exec(
+		_, _ = h.db.Exec(
 			`UPDATE payments SET reference = $1, status = 'pending_review' WHERE user_id = $2 AND reference = $3`,
 			req.TxHash, userID, req.Reference,
 		) //nolint:errcheck
@@ -149,7 +149,7 @@ func (h *Handlers) VerifyCrypto(c *fiber.Ctx) error {
 	}
 
 	if !result.Confirmed {
-		h.db.Exec(
+		_, _ = h.db.Exec(
 			`UPDATE payments SET reference = $1, status = 'pending_review' WHERE user_id = $2 AND reference = $3`,
 			req.TxHash, userID, req.Reference,
 		) //nolint:errcheck
@@ -159,10 +159,10 @@ func (h *Handlers) VerifyCrypto(c *fiber.Ctx) error {
 		})
 	}
 
-	h.db.Exec(`UPDATE payments SET reference = $1, status = 'success' WHERE user_id = $2 AND reference = $3`,
+	_, _ = h.db.Exec(`UPDATE payments SET reference = $1, status = 'success' WHERE user_id = $2 AND reference = $3`,
 		req.TxHash, userID, req.Reference) //nolint:errcheck
-	h.db.Exec(`UPDATE users SET plan = 'pro' WHERE id = $1`, userID) //nolint:errcheck
-	h.db.Exec(`
+	_, _ = h.db.Exec(`UPDATE users SET plan = 'pro' WHERE id = $1`, userID) //nolint:errcheck
+	_, _ = h.db.Exec(`
 		INSERT INTO subscriptions (user_id, provider, provider_subscription_id, status, current_period_end)
 		VALUES ($1, 'crypto', $2, 'active', $3)
 		ON CONFLICT (user_id) DO UPDATE SET
@@ -196,7 +196,7 @@ func (h *Handlers) ListInvoices(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to fetch invoices"})
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	type Invoice struct {
 		ID        string  `json:"id"`
@@ -253,8 +253,8 @@ func (h *Handlers) GetUsage(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"plan":        plan,
-		"scan_count":  scanCount,
-		"scan_limit":  scanLimit,
+		"scans_used":  scanCount,
+		"scans_limit": scanLimit,
 		"period_days": 30,
 	})
 }
@@ -324,13 +324,13 @@ func (h *Handlers) Webhook(c *fiber.Ctx) error {
 	}
 
 	// Mark payment success.
-	h.db.Exec(`UPDATE payments SET status = 'success' WHERE reference = $1`, event.Data.Reference) //nolint:errcheck
+	_, _ = h.db.Exec(`UPDATE payments SET status = 'success' WHERE reference = $1`, event.Data.Reference) //nolint:errcheck
 
 	// Upgrade user to pro.
-	h.db.Exec(`UPDATE users SET plan = 'pro' WHERE id = $1`, userID) //nolint:errcheck
+	_, _ = h.db.Exec(`UPDATE users SET plan = 'pro' WHERE id = $1`, userID) //nolint:errcheck
 
 	// Upsert subscription record.
-	h.db.Exec(`
+	_, _ = h.db.Exec(`
 		INSERT INTO subscriptions (user_id, provider, provider_subscription_id, status, current_period_end)
 		VALUES ($1, 'paystack', $2, 'active', $3)
 		ON CONFLICT (user_id) DO UPDATE SET

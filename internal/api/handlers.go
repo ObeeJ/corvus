@@ -52,8 +52,8 @@ func (h *Handlers) StartScan(c *fiber.Ctx) error {
 		Predict:     req.Predict,
 		Ports:       req.Ports,
 		ScanType:    req.Type,
-		Timeout:     3 * time.Second,
-		Concurrency: 500,
+		Timeout:     750 * time.Millisecond,
+		Concurrency: 2000,
 		Rate:        0,
 	}
 
@@ -105,7 +105,7 @@ func (h *Handlers) StreamScan(c *fiber.Ctx) error {
 	// Proceed with upgrade
 	return websocket.New(func(c *websocket.Conn) {
 		h.log.Info("WebSocket connected", "job", id, "client", c.RemoteAddr().String())
-		defer c.Close()
+		defer c.Close() //nolint:errcheck
 
 		// Subscribe to the engine for live results.
 		ch := h.engine.Subscribe(id)

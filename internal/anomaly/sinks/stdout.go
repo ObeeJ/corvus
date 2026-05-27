@@ -22,10 +22,10 @@ func (s *StdoutSink) Send(event types.AnomalyEvent) error {
 	symbol := severitySymbol(event.Severity)
 	ts := event.Timestamp.Format(time.RFC3339)
 
-	fmt.Fprintf(s.w, "\n  %s  %s [%s]\n", symbol, event.Type, event.Severity)
-	fmt.Fprintf(s.w, "     host    %s:%d/%s\n", event.Host, event.Port, event.Protocol)
-	fmt.Fprintf(s.w, "     message %s\n", event.Message)
-	fmt.Fprintf(s.w, "     time    %s\n", ts)
+	_, _ = fmt.Fprintf(s.w, "\n  %s  %s [%s]\n", symbol, event.Type, event.Severity)
+	_, _ = fmt.Fprintf(s.w, "     host    %s:%d/%s\n", event.Host, event.Port, event.Protocol)
+	_, _ = fmt.Fprintf(s.w, "     message %s\n", event.Message)
+	_, _ = fmt.Fprintf(s.w, "     time    %s\n", ts)
 
 	return nil
 }

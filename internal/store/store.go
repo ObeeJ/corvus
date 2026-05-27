@@ -45,7 +45,7 @@ func Open(path string, log *slog.Logger) (*Store, error) {
 		return nil
 	})
 	if err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("initialising buckets: %w", err)
 	}
 
