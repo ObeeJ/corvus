@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ObeeJ/corvus/internal/mail"
 	"github.com/google/uuid"
 	"github.com/gofiber/fiber/v2"
 )
@@ -16,10 +17,11 @@ type Handlers struct {
 	paystack *PaystackService
 	db       *sql.DB
 	log      *slog.Logger
+	mailer   mail.Sender
 }
 
-func NewHandlers(svc *PaystackService, db *sql.DB, log *slog.Logger) *Handlers {
-	return &Handlers{paystack: svc, db: db, log: log}
+func NewHandlers(svc *PaystackService, db *sql.DB, log *slog.Logger, mailer mail.Sender) *Handlers {
+	return &Handlers{paystack: svc, db: db, log: log, mailer: mailer}
 }
 
 // CreateCheckout initializes a Paystack payment for the Pro plan.
@@ -173,6 +175,13 @@ func (h *Handlers) VerifyCrypto(c *fiber.Ctx) error {
 
 	h.log.Info("crypto payment confirmed on-chain, user upgraded",
 		"user_id", userID, "tx", req.TxHash, "network", network, "token", storedToken)
+
+	var email string
+	_ = h.db.QueryRow("SELECT email FROM users WHERE id = $1", userID).Scan(&email)
+	if email != "" && h.mailer != nil {
+		_ = h.mailer.SendReceipt(email, "$10", "Pro (Crypto)", req.TxHash)
+		_ = h.mailer.SendUpgradeWelcome(email)
+	}
 
 	return c.JSON(fiber.Map{
 		"status":  "confirmed",
@@ -340,5 +349,13 @@ func (h *Handlers) Webhook(c *fiber.Ctx) error {
 	`, userID, event.Data.Reference, time.Now().AddDate(0, 1, 0)) //nolint:errcheck
 
 	h.log.Info("payment confirmed, user upgraded to pro", "user_id", userID)
+
+	var email string
+	_ = h.db.QueryRow("SELECT email FROM users WHERE id = $1", userID).Scan(&email)
+	if email != "" && h.mailer != nil {
+		_ = h.mailer.SendReceipt(email, "₦16,500", "Pro", event.Data.Reference)
+		_ = h.mailer.SendUpgradeWelcome(email)
+	}
+
 	return c.SendStatus(fiber.StatusOK)
 }

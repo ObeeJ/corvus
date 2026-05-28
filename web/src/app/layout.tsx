@@ -30,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${syne.variable} ${ibmPlexMono.variable} h-full antialiased`}>
-      <body className="h-full bg-background text-foreground">
+      <body className="h-full bg-background text-foreground overflow-x-hidden w-full">
         <AuthProvider>
           <TooltipProvider>
             {children}

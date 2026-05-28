@@ -81,7 +81,7 @@ type PaystackService struct {
 func NewPaystackService(log *slog.Logger) *PaystackService {
 	baseURL := os.Getenv("PUBLIC_URL")
 	if baseURL == "" {
-		baseURL = "http://localhost:3001"
+		baseURL = "http://localhost:3000"
 	}
 	return &PaystackService{
 		secretKey:  os.Getenv("PAYSTACK_SECRET_KEY"),

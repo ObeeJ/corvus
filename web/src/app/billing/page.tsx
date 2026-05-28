@@ -341,7 +341,7 @@ export default function BillingPage() {
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}>
           <Section title="Upgrade to Pro" desc="$10 / month · unlimited scans · full API access · no data limits" accent>
             <div className="grid grid-cols-2 gap-2">
-              {["Unlimited scans","Unlimited data retention","CVE + OSV correlation","Full REST + WebSocket API","LLM natural language queries","Cloud API correlation","Distributed mesh nodes","Priority support"].map(f => (
+              {["Unlimited scans","Unlimited data retention","CVE + OSV correlation","Full REST + WebSocket API","LLM natural language queries","Cloud API correlation","Distributed scanner mesh nodes","Priority support"].map(f => (
                 <div key={f} className="flex items-center gap-2 font-mono text-[11px] text-white/50 tracking-wide">
                   <Zap className="w-3 h-3 text-[#F97316]/60 shrink-0" />{f}
                 </div>

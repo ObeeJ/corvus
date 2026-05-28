@@ -13,6 +13,7 @@ import (
 	"github.com/ObeeJ/corvus/internal/billing"
 	"github.com/ObeeJ/corvus/internal/db"
 	"github.com/ObeeJ/corvus/internal/engine"
+	"github.com/ObeeJ/corvus/internal/mail"
 	"github.com/ObeeJ/corvus/internal/mesh"
 	"github.com/ObeeJ/corvus/internal/store"
 	"github.com/gofiber/fiber/v2"
@@ -92,7 +93,8 @@ func New(eng *engine.Engine, storeMgr *store.Manager, dbClient *db.Client, meshN
 	if dbClient != nil {
 		s.auth = auth.NewHandlers(dbClient)
 		svc := billing.NewPaystackService(log)
-		s.billing = billing.NewHandlers(svc, dbClient.DB, log)
+		mailer := mail.New(log)
+		s.billing = billing.NewHandlers(svc, dbClient.DB, log, mailer)
 	}
 
 	s.registerMiddleware()
@@ -300,7 +302,7 @@ func getAllowedOrigins() string {
 	// Dev default: allow Next.js dev server and production URL
 	publicURL := os.Getenv("PUBLIC_URL")
 	if publicURL == "" {
-		publicURL = "http://localhost:3001"
+		publicURL = "http://localhost:3000"
 	}
 	return "http://localhost:3000,http://localhost:3001," + publicURL
 }
